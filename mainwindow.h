@@ -19,6 +19,7 @@ private slots:
 	void selectFileButtonClicked();
 	void loaderProgress(quint64 current,quint64 total);
 	void loaderDone();
+	void selectSaveButtonClicked();
 private:
 	Ui::MainWindow ui;
 	LoaderThread *m_loaderThread;

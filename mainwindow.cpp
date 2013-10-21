@@ -2,6 +2,8 @@
 #include <qserialportinfo.h>
 #include <QTimer>
 #include <QDebug>
+#include <QFileDialog>
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
 	ui.setupUi(this);
@@ -11,6 +13,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
 	connect(ui.loadFirmwarePushButton,SIGNAL(clicked()),this,SLOT(loadButtonClicked()));
 	connect(ui.selectFirmwarePushButton,SIGNAL(clicked()),this,SLOT(selectFileButtonClicked()));
+	connect(ui.selectSavePushButton,SIGNAL(clicked()),this,SLOT(selectSaveButtonClicked()));
 }
 
 MainWindow::~MainWindow()
@@ -48,6 +51,13 @@ void MainWindow::loadButtonClicked()
 
 void MainWindow::selectFileButtonClicked()
 {
+	QString filename = QFileDialog::getOpenFileName(this,"Open FW File");
+	if (filename == "")
+	{
+		return;
+	}
+	ui.lineEdit->setText(filename);
+	loadButtonClicked();
 
 }
 void MainWindow::loaderProgress(quint64 current,quint64 total)
@@ -63,4 +73,16 @@ void MainWindow::loaderDone()
 {
 	ui.progressBar->setValue(ui.progressBar->maximum());
 
+}
+void MainWindow::selectSaveButtonClicked()
+{
+	QString filename = QFileDialog::getSaveFileName(this,"Save FW File");
+	if (filename == "")
+	{
+		return;
+	}
+	m_loaderThread = new LoaderThread();
+	connect(m_loaderThread,SIGNAL(progress(quint64,quint64)),this,SLOT(loaderProgress(quint64,quint64)));
+	connect(m_loaderThread,SIGNAL(done()),this,SLOT(loaderDone()));
+	m_loaderThread->startRip(filename,ui.portNameComboBox->itemData(ui.portNameComboBox->currentIndex()).toString());
 }
