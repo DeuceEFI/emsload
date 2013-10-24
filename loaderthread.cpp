@@ -283,6 +283,37 @@ void LoaderThread::run()
 		fwfile.close();
 		qDebug() << m_addressList.size() << "records loaded";
 
+		QList<QPair<unsigned int,QByteArray> > newAddressList;
+
+		for (int i=0;i<m_addressList.size();i++)
+		{
+			bool ok = false;
+			unsigned int address = m_addressList[i].first.toInt(&ok,16);
+			QByteArray internal;
+			for (int j=0;j<m_addressList[i].second.size()-3;j+=2)
+			{
+				internal.append(QString(m_addressList[i].second[j]).append(m_addressList[i].second[j+1]).toInt(&ok,16));
+			}
+			unsigned char newpage = (address >> 16) & 0xFF;
+			newAddressList.append(QPair<unsigned int,QByteArray>(address,internal));
+		}
+
+		QList<QPair<unsigned int,QByteArray> > compactAddressList;
+		compactAddressList.append(QPair<unsigned int,QByteArray>(newAddressList[0].first,newAddressList[1].second));
+		for (int i=1;i<newAddressList.size();i++)
+		{
+			if (newAddressList[i-1].first + newAddressList[i-1].second.size() == newAddressList[i].first)
+			{
+				//Last address is before our current address. add our current to the last.
+				compactAddressList[compactAddressList.size()-1].second.append(newAddressList[i].second);
+			}
+			else
+			{
+				compactAddressList.append(QPair<unsigned int,QByteArray>(newAddressList[i].first,newAddressList[i].second));
+			}
+		}
+
+
 		openPort();
 
 
@@ -295,8 +326,72 @@ void LoaderThread::run()
 		}
 
 		//We're in SM mode! Let's do stuff.
-
 		unsigned char currpage = 0;
+		for (int i=0;i<compactAddressList.size();i++)
+		{
+			emit progress(i,compactAddressList.size());
+			bool ok = false;
+			unsigned int address = compactAddressList[i].first;
+			//QByteArray internal;
+			//for (int j=0;j<m_addressList[i].second.size()-3;j+=2)
+			//{
+			//	internal.append(QString(m_addressList[i].second[j]).append(m_addressList[i].second[j+1]).toInt(&ok,16));
+			//}
+			unsigned char newpage = (address >> 16) & 0xFF;
+			QByteArray packet;
+			QByteArray newpacket;
+			if (newpage != currpage)
+			{
+
+				currpage = newpage;
+				qDebug() << "Selecting page:" << currpage;
+				selectPage(currpage);
+				eraseBlock();
+			}
+
+			for (int j=0;j<compactAddressList[i].second.size();j+=252)
+			{
+				int size = (j+252< compactAddressList[i].second.size()) ? 252 : (j - compactAddressList[i].second.size());
+				if (!writeBlock((address & 0xFFFF) + j,compactAddressList[i].second.mid(j,size)))
+				{
+					//Bad block. Retry.
+					i--;
+					continue;
+
+				}
+				if (!verifyBlock((address & 0xFFFF) + j,compactAddressList[i].second.mid(j,size)))
+				{
+					qDebug() << "Bad verification of written data. Go back one and try again";
+					i--;
+					continue;
+
+				}
+			}
+
+			//if (!writeBlock(address,internal))
+			//{
+			//	//Bad block. Retry.
+			//	i--;
+			//	continue;
+			//}
+			//if (!verifyBlock(address,internal))
+			//{
+			//	qDebug() << "Bad verification of written data. Go back one and try again";
+			//	i--;
+			//	continue;
+			//}
+			//msleep(1000);
+		}
+		m_port->write(QByteArray().append(0xB4)); //reset
+		m_port->waitForBytesWritten(1);
+		m_port->close();
+		delete m_port;
+		m_port = 0;
+		emit done();
+		qDebug() << "Current operation completed in:" << (QDateTime::currentMSecsSinceEpoch() - currentmsec) / 1000.0 << "seconds";
+		return;
+
+
 		for (int i=0;i<m_addressList.size();i++)
 		{
 			emit progress(i,m_addressList.size());
