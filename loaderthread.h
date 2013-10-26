@@ -25,7 +25,7 @@
 #include <QPair>
 #include "s19file.h"
 
-#include "qserialport.h"
+#include "serialmonitor.h"
 
 
 class LoaderThread : public QThread
@@ -39,22 +39,14 @@ public:
 protected:
 	void run();
 private:
-	void clearBuffers();
 	S19File *m_s19File;
-	int readBytes(QByteArray *buf,int len,int timeout=1000);
-	QSerialPort *m_port;
-	QByteArray m_privBuffer;
-	bool verifyBlock(unsigned short address,QByteArray block);
-	bool openPort();
-	bool verifySM();
+	//QSerialPort *m_port;
+	//QByteArray m_privBuffer;
 	QList<QPair<QString,QString> > m_addressList;
 	QString m_portName;
 	QString operation;
 	QString m_fwFileName;
-	bool selectPage(unsigned char page);
-	bool readBlockToS19(unsigned char page,unsigned short address,unsigned char reqsize,QString *returnval);
-	bool writeBlock(unsigned short address,QByteArray block);
-	bool eraseBlock();
+	SerialMonitor *serialMonitor;
 signals:
 	void progress(quint64 current,quint64 total);
 	void done(quint64 msecs);
