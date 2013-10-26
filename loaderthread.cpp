@@ -202,17 +202,17 @@ bool LoaderThread::verifySM()
 		QByteArray verifybuf;
 		int verifylen = readBytes(&verifybuf,3);
 		qDebug() << "Verify len:" << verifylen;
-		if ((unsigned char)verifybuf[3] == 0xE0)
+		if ((unsigned char)verifybuf[0] == 0xE0)
 		{
-			if ((unsigned char)verifybuf[5] == 0x3E)
+			if ((unsigned char)verifybuf[2] == 0x3E)
 			{
 				qDebug() << "In SM mode";
 				return true;
 			}
 		}
-		else if ((unsigned char)verifybuf[3] == 0xE1)
+		else if ((unsigned char)verifybuf[0] == 0xE1)
 		{
-			if ((unsigned char)verifybuf[5] == 0x3E)
+			if ((unsigned char)verifybuf[2] == 0x3E)
 			{
 				qDebug() << "In SM mode two";
 				return true;
