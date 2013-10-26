@@ -15,9 +15,11 @@ include(serialport/apmserial.pri)
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    loaderthread.cpp
+    loaderthread.cpp \
+    s19file.cpp
 
 HEADERS  += mainwindow.h \
-    loaderthread.h
+    loaderthread.h \
+    s19file.h
 
 FORMS    += mainwindow.ui

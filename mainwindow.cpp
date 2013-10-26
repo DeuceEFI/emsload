@@ -1,3 +1,23 @@
+/************************************************************************************
+ * EMSLoader - Open Source S12X Serial Monitor S19 Loader                           *
+ * Copyright (C) 2013  Michael Carpenter (malcom2073@gmail.com)                     *
+ *                                                                                  *
+ * This file is a part of EMSLoader                                                 *
+ *                                                                                  *
+ * EMSLoader is free software; you can redistribute it and/or modify                *
+ * it under the terms of the GNU General Public License as published by             *
+ * the Free Software Foundation, either version 3 of the License, or                *
+ * (at your option) any later version.                                              *
+ *                                                                                  *
+ * EMSLoader is distributed in the hope that it will be useful,                     *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of                   *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU                *
+ * General Public License for more details.                                         *
+ *                                                                                  *
+ * You should have received a copy of the GNU General Public License                *
+ * along with EMSLoader.  If not, see <http://www.gnu.org/licenses/>.               *
+ ************************************************************************************/
+
 #include "mainwindow.h"
 #include <qserialportinfo.h>
 #include <QTimer>
@@ -45,8 +65,16 @@ void MainWindow::loadButtonClicked()
 {
 	m_loaderThread = new LoaderThread();
 	connect(m_loaderThread,SIGNAL(progress(quint64,quint64)),this,SLOT(loaderProgress(quint64,quint64)));
-	connect(m_loaderThread,SIGNAL(done()),this,SLOT(loaderDone()));
-	m_loaderThread->startLoad(ui.lineEdit->text(),ui.portNameComboBox->itemData(ui.portNameComboBox->currentIndex()).toString());
+	connect(m_loaderThread,SIGNAL(done(quint64)),this,SLOT(loaderDone(quint64)));
+	m_loaderThread->startLoad(m_loadedS19,ui.portNameComboBox->itemData(ui.portNameComboBox->currentIndex()).toString());
+}
+void MainWindow::loadFileDone()
+{
+	QString labeltext = "S19 Loaded\n";
+	labeltext += QString::number(m_loadedS19->getRecordCount()) + " records loaded\n";
+	labeltext += QString::number(m_loadedS19->getCompactRecordCount()) + " compacted records to flash\n";
+	labeltext += QString::number(m_loadedS19->getTotalSize()) + " total bytes to flash";
+	ui.label->setText(labeltext);
 }
 
 void MainWindow::selectFileButtonClicked()
@@ -57,7 +85,11 @@ void MainWindow::selectFileButtonClicked()
 		return;
 	}
 	ui.lineEdit->setText(filename);
-	loadButtonClicked();
+	ui.label->setText("Loading S19...");
+	//loadButtonClicked();
+	m_loadedS19 = new S19File();
+	connect(m_loadedS19,SIGNAL(done()),this,SLOT(loadFileDone()));
+	m_loadedS19->loadFile(filename);
 
 }
 void MainWindow::loaderProgress(quint64 current,quint64 total)
@@ -69,10 +101,12 @@ void MainWindow::loaderProgress(quint64 current,quint64 total)
 	ui.progressBar->setValue(current);
 }
 
-void MainWindow::loaderDone()
+void MainWindow::loaderDone(quint64 msecs)
 {
 	ui.progressBar->setValue(ui.progressBar->maximum());
-
+	ui.label->setText(ui.label->text() + "\nFlashing complete in: " + QString::number(msecs / 1000.0) + " seconds");
+	m_loaderThread->deleteLater();
+	m_loaderThread = 0;
 }
 void MainWindow::selectSaveButtonClicked()
 {

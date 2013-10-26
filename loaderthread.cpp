@@ -1,3 +1,23 @@
+/************************************************************************************
+ * EMSLoader - Open Source S12X Serial Monitor S19 Loader                           *
+ * Copyright (C) 2013  Michael Carpenter (malcom2073@gmail.com)                     *
+ *                                                                                  *
+ * This file is a part of EMSLoader                                                 *
+ *                                                                                  *
+ * EMSLoader is free software; you can redistribute it and/or modify                *
+ * it under the terms of the GNU General Public License as published by             *
+ * the Free Software Foundation, either version 3 of the License, or                *
+ * (at your option) any later version.                                              *
+ *                                                                                  *
+ * EMSLoader is distributed in the hope that it will be useful,                     *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of                   *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU                *
+ * General Public License for more details.                                         *
+ *                                                                                  *
+ * You should have received a copy of the GNU General Public License                *
+ * along with EMSLoader.  If not, see <http://www.gnu.org/licenses/>.               *
+ ************************************************************************************/
+
 #include "loaderthread.h"
 #include <QFile>
 #include <QDebug>
@@ -48,7 +68,7 @@ bool LoaderThread::verifyBlock(unsigned short address,QByteArray block)
 	int size = readBytes(&newpacket,block.size()+4); //Read 16 bytes, + 4 bytes of reponse.
 	if (size != block.size()+4)
 	{
-		qDebug() << "Bad size read from FreeEMS";
+		qDebug() << "Bad size read from verifyBlock" << size << block.size()+4;
 		//qDebug() << "Error on page:" << "0x" + QString::number(page,16).toUpper() << "address:" << "0x" + QString::number(address,16).toUpper();
 		return false;
 	}
@@ -73,7 +93,7 @@ bool LoaderThread::readBlockToS19(unsigned char page,unsigned short address,unsi
 	int size = readBytes(&newpacket,reqsize+4); //Read 16 bytes, + 4 bytes of reponse.
 	if (size != reqsize+4)
 	{
-		qDebug() << "Bad size read from FreeEMS";
+		qDebug() << "Bad size read from S19";
 		qDebug() << "Error on page:" << "0x" + QString::number(page,16).toUpper() << "address:" << "0x" + QString::number(address,16).toUpper();
 		return false;
 	}
@@ -137,14 +157,13 @@ bool LoaderThread::writeBlock(unsigned short address,QByteArray block)
 		}
 		else
 		{
-			qDebug() << "Bad verify";
+			qDebug() << "Bad verify on write block";
 			qDebug() << QString::number((unsigned char)newpacket[0],16) << QString::number((unsigned char)newpacket[2],16);
 			qDebug() << "Verify len:" <<m_privBuffer.size();
 			return false;
 		}
 	}
 }
-
 bool LoaderThread::eraseBlock()
 {
 	m_port->write(QByteArray().append(0xB8));
@@ -160,13 +179,13 @@ bool LoaderThread::eraseBlock()
 		}
 		else
 		{
-			qDebug() << "Bad verify";
+			qDebug() << "Bad verify on erase block";
 			return false;
 		}
 	}
 	else
 	{
-		qDebug() << "Bad read:" << size;
+		qDebug() << "Bad read on erase block:" << size;
 		return false;
 	}
 }
@@ -175,22 +194,25 @@ bool LoaderThread::verifySM()
 	int retry = 0;
 	while (retry++ <= 3)
 	{
+		//m_port->clear();
+		//m_port->flush();
+		//m_privBuffer.clear();
 		m_port->write(QByteArray().append(0x0D));
 		m_port->waitForBytesWritten(1);
 		QByteArray verifybuf;
 		int verifylen = readBytes(&verifybuf,3);
 		qDebug() << "Verify len:" << verifylen;
-		if ((unsigned char)verifybuf[0] == 0xE0)
+		if ((unsigned char)verifybuf[3] == 0xE0)
 		{
-			if ((unsigned char)verifybuf[2] == 0x3E)
+			if ((unsigned char)verifybuf[5] == 0x3E)
 			{
 				qDebug() << "In SM mode";
 				return true;
 			}
 		}
-		else if ((unsigned char)verifybuf[0] == 0xE1)
+		else if ((unsigned char)verifybuf[3] == 0xE1)
 		{
-			if ((unsigned char)verifybuf[2] == 0x3E)
+			if ((unsigned char)verifybuf[5] == 0x3E)
 			{
 				qDebug() << "In SM mode two";
 				return true;
@@ -200,6 +222,7 @@ bool LoaderThread::verifySM()
 		{
 			qDebug() << "Bad return:" << QString::number((unsigned char)verifybuf[0],16) << QString::number((unsigned char)verifybuf[2],16);
 		}
+		msleep(100);
 	}
 	//Timed out.
 	return false;
@@ -252,13 +275,13 @@ void LoaderThread::run()
 		m_port->close();
 		delete m_port;
 		m_port = 0;
-		emit done();
+		emit done(QDateTime::currentMSecsSinceEpoch() - currentmsec);
 		qDebug() << "Current operation completed in:" << (QDateTime::currentMSecsSinceEpoch() - currentmsec) / 1000.0 << "seconds";
 		return;
 	}
 	else if (operation == "load")
 	{
-		QFile fwfile(m_fwFileName);
+		/*QFile fwfile(m_fwFileName);
 		fwfile.open(QIODevice::ReadOnly);
 		while (!fwfile.atEnd())
 		{
@@ -285,6 +308,8 @@ void LoaderThread::run()
 
 		QList<QPair<unsigned int,QByteArray> > newAddressList;
 
+		quint64 totalbytes = 0;
+
 		for (int i=0;i<m_addressList.size();i++)
 		{
 			bool ok = false;
@@ -296,7 +321,9 @@ void LoaderThread::run()
 			}
 			unsigned char newpage = (address >> 16) & 0xFF;
 			newAddressList.append(QPair<unsigned int,QByteArray>(address,internal));
+			totalbytes += internal.size();
 		}
+		qDebug() << "Total bytes to write:" << totalbytes;
 
 		QList<QPair<unsigned int,QByteArray> > compactAddressList;
 		compactAddressList.append(QPair<unsigned int,QByteArray>(newAddressList[0].first,newAddressList[1].second));
@@ -311,10 +338,16 @@ void LoaderThread::run()
 			{
 				compactAddressList.append(QPair<unsigned int,QByteArray>(newAddressList[i].first,newAddressList[i].second));
 			}
+		}*/
+
+
+		if (!openPort())
+		{
+			delete m_port;
+			qDebug() << "Unable to open port";
+			emit error("Unable to open port");
+			return;
 		}
-
-
-		openPort();
 
 
 		if (!verifySM())
@@ -322,16 +355,21 @@ void LoaderThread::run()
 			//Timed out
 			m_port->close();
 			delete m_port;
+			qDebug() << "Unable to open port";
+			emit error("Unable to verify SM mode");
 			return;
 		}
 
 		//We're in SM mode! Let's do stuff.
+
 		unsigned char currpage = 0;
-		for (int i=0;i<compactAddressList.size();i++)
+		int totalerror = 0;
+		for (int i=0;i<m_s19File->getCompactRecordCount();i++)
 		{
-			emit progress(i,compactAddressList.size());
+
+			emit progress(i,m_s19File->getCompactRecordCount());
 			bool ok = false;
-			unsigned int address = compactAddressList[i].first;
+			unsigned int address = m_s19File->getCompactRecord(i).first;
 			//QByteArray internal;
 			//for (int j=0;j<m_addressList[i].second.size()-3;j+=2)
 			//{
@@ -349,23 +387,35 @@ void LoaderThread::run()
 				eraseBlock();
 			}
 
-			for (int j=0;j<compactAddressList[i].second.size();j+=252)
+			for (int j=0;j<m_s19File->getCompactRecord(i).second.size();j+=252)
 			{
-				int size = (j+252< compactAddressList[i].second.size()) ? 252 : (j - compactAddressList[i].second.size());
-				if (!writeBlock((address & 0xFFFF) + j,compactAddressList[i].second.mid(j,size)))
+				if (totalerror >= 100)
+				{
+					emit error("Too many errors!");
+					m_port->close();
+					delete m_port;
+					return;
+				}
+				int size = (j+252< m_s19File->getCompactRecord(i).second.size()) ? 252 : (j - m_s19File->getCompactRecord(i).second.size());
+				if (!writeBlock((address & 0xFFFF) + j,m_s19File->getCompactRecord(i).second.mid(j,size)))
 				{
 					//Bad block. Retry.
+					m_privBuffer.clear();
 					i--;
+					totalerror++;
 					continue;
 
 				}
-				if (!verifyBlock((address & 0xFFFF) + j,compactAddressList[i].second.mid(j,size)))
+				if (!verifyBlock((address & 0xFFFF) + j,m_s19File->getCompactRecord(i).second.mid(j,size)))
 				{
 					qDebug() << "Bad verification of written data. Go back one and try again";
+					m_privBuffer.clear();
 					i--;
+					totalerror++;
 					continue;
 
 				}
+
 			}
 
 			//if (!writeBlock(address,internal))
@@ -387,53 +437,7 @@ void LoaderThread::run()
 		m_port->close();
 		delete m_port;
 		m_port = 0;
-		emit done();
-		qDebug() << "Current operation completed in:" << (QDateTime::currentMSecsSinceEpoch() - currentmsec) / 1000.0 << "seconds";
-		return;
-
-
-		for (int i=0;i<m_addressList.size();i++)
-		{
-			emit progress(i,m_addressList.size());
-			bool ok = false;
-			unsigned int address = m_addressList[i].first.toInt(&ok,16);
-			QByteArray internal;
-			for (int j=0;j<m_addressList[i].second.size()-3;j+=2)
-			{
-				internal.append(QString(m_addressList[i].second[j]).append(m_addressList[i].second[j+1]).toInt(&ok,16));
-			}
-			unsigned char newpage = (address >> 16) & 0xFF;
-			QByteArray packet;
-			QByteArray newpacket;
-			if (newpage != currpage)
-			{
-
-				currpage = newpage;
-				qDebug() << "Selecting page:" << currpage;
-				selectPage(currpage);
-				eraseBlock();
-			}
-
-			if (!writeBlock(address,internal))
-			{
-				//Bad block. Retry.
-				i--;
-				continue;
-			}
-			if (!verifyBlock(address,internal))
-			{
-				qDebug() << "Bad verification of written data. Go back one and try again";
-				i--;
-				continue;
-			}
-			//msleep(1000);
-		}
-		m_port->write(QByteArray().append(0xB4)); //reset
-		m_port->waitForBytesWritten(1);
-		m_port->close();
-		delete m_port;
-		m_port = 0;
-		emit done();
+		emit done(QDateTime::currentMSecsSinceEpoch() - currentmsec);
 		qDebug() << "Current operation completed in:" << (QDateTime::currentMSecsSinceEpoch() - currentmsec) / 1000.0 << "seconds";
 		return;
 	}
@@ -449,15 +453,16 @@ bool LoaderThread::openPort()
 	}
 	m_port->setBaudRate(115200);
 	m_port->setParity(QSerialPort::NoParity);
+	return true;
 }
 
-void LoaderThread::startLoad(QString load,QString com)
+void LoaderThread::startLoad(S19File *file,QString com)
 {
-	qDebug() << "Loading:" << load;
+	m_s19File = file;
+	//qDebug() << "Loading:" << load;
 	qDebug() << "Com port:" << com;
 	operation = "load";
 	m_portName = com;
-	m_fwFileName = load;
 	start();
 }
 void LoaderThread::startRip(QString filename,QString portname)
@@ -468,6 +473,15 @@ void LoaderThread::startRip(QString filename,QString portname)
 	m_portName = portname;
 	operation = "rip";
 	start();
+}
+
+void LoaderThread::clearBuffers()
+{
+	while (m_port->waitForReadyRead(1000))
+	{
+		m_port->readAll();
+	}
+	m_privBuffer.clear();
 }
 
 int LoaderThread::readBytes(QByteArray *buf,int len,int timeout)

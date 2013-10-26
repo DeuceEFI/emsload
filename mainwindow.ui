@@ -55,7 +55,7 @@
      <rect>
       <x>20</x>
       <y>30</y>
-      <width>281</width>
+      <width>451</width>
       <height>25</height>
      </rect>
     </property>
@@ -76,14 +76,27 @@
    <widget class="QPushButton" name="selectSavePushButton">
     <property name="geometry">
      <rect>
-      <x>400</x>
-      <y>160</y>
+      <x>120</x>
+      <y>210</y>
       <width>93</width>
       <height>27</height>
      </rect>
     </property>
     <property name="text">
      <string>Save FW</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>320</x>
+      <y>70</y>
+      <width>271</width>
+      <height>151</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
     </property>
    </widget>
   </widget>
