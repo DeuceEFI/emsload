@@ -8,7 +8,7 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += debug
-TARGET = Loader
+TARGET = emsload
 TEMPLATE = app
 
 include(serialport/apmserial.pri)
