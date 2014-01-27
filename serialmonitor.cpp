@@ -54,7 +54,7 @@ bool SerialMonitor::openPort(QString portname)
 bool SerialMonitor::verifySM()
 {
 	int retry = 0;
-	while (retry++ <= 3)
+	while (retry++ <= 6)
 	{
 		//m_port->clear();
 		//m_port->flush();
@@ -83,9 +83,14 @@ bool SerialMonitor::verifySM()
 		else
 		{
 			qDebug() << "Bad return:" << QString::number((unsigned char)verifybuf[0],16) << QString::number((unsigned char)verifybuf[2],16);
+			readBytes(&verifybuf,10,50);
+			m_port->clear();
+			m_port->flush();
+			m_privBuffer.clear();
 		}
 	}
 	//Timed out.
+	qDebug() << "Timed out";
 	return false;
 }
 

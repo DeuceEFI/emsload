@@ -40,11 +40,14 @@ void LoaderThread::run()
 	qint64 currentmsec = QDateTime::currentMSecsSinceEpoch();
 	if (operation == "rip")
 	{
+		serialMonitor = new SerialMonitor();
 		serialMonitor->openPort(m_portName);
 		if (!serialMonitor->verifySM())
 		{
 			//Timed out
 			serialMonitor->closePort();
+			emit error("Unable to verify SM mode");
+			delete serialMonitor;
 			return;
 		}
 
@@ -52,7 +55,13 @@ void LoaderThread::run()
 
 
 		QFile output(m_fwFileName);
-		output.open(QIODevice::ReadWrite | QIODevice::Truncate);
+		if (!output.open(QIODevice::ReadWrite | QIODevice::Truncate))
+		{
+			serialMonitor->closePort();
+			emit error("Unable to open file for writing");
+			delete serialMonitor;
+
+		}
 
 		for (int i=0xE0;i<0xFF;i++)
 		{
@@ -82,6 +91,7 @@ void LoaderThread::run()
 		serialMonitor->closePort();
 		emit done(QDateTime::currentMSecsSinceEpoch() - currentmsec);
 		qDebug() << "Current operation completed in:" << (QDateTime::currentMSecsSinceEpoch() - currentmsec) / 1000.0 << "seconds";
+		delete serialMonitor;
 		return;
 	}
 	else if (operation == "load")
@@ -92,6 +102,7 @@ void LoaderThread::run()
 		{
 			qDebug() << "Unable to open port";
 			emit error("Unable to open port");
+			delete serialMonitor;
 			return;
 		}
 
@@ -101,6 +112,7 @@ void LoaderThread::run()
 			serialMonitor->closePort();
 			qDebug() << "Unable to open port";
 			emit error("Unable to verify SM mode");
+			delete serialMonitor;
 			return;
 		}
 
@@ -129,6 +141,7 @@ void LoaderThread::run()
 				{
 					serialMonitor->closePort();
 					emit error("Too many errors!");
+					delete serialMonitor;
 					return;
 				}
 				int size = (j+252< m_s19File->getCompactRecord(i).second.size()) ? 252 : (j - m_s19File->getCompactRecord(i).second.size());
@@ -155,6 +168,7 @@ void LoaderThread::run()
 		serialMonitor->closePort();
 		emit done(QDateTime::currentMSecsSinceEpoch() - currentmsec);
 		qDebug() << "Current operation completed in:" << (QDateTime::currentMSecsSinceEpoch() - currentmsec) / 1000.0 << "seconds";
+		delete serialMonitor;
 		return;
 	}
 }
