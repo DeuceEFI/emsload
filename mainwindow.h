@@ -41,6 +41,7 @@ private slots:
 	void loaderDone(quint64 msecs);
 	void selectSaveButtonClicked();
 	void loadFileDone();
+	void loaderError(QString error);
 private:
 	Ui::MainWindow ui;
 	LoaderThread *m_loaderThread;

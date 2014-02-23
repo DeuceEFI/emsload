@@ -23,6 +23,7 @@
 #include <QTimer>
 #include <QDebug>
 #include <QFileDialog>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -63,9 +64,20 @@ void MainWindow::comPortRefresh()
 }
 void MainWindow::loadButtonClicked()
 {
+	if (ui.lineEdit->text() == "")
+	{
+		QMessageBox::information(0,"Error","Select a file to load first");
+		return;
+	}
+	if (!QFile::exists(ui.lineEdit->text()))
+	{
+		QMessageBox::information(0,"Error","File selected does not seem to exist. Ensure you have the proper permissions to access that file");
+		return;
+	}
 	m_loaderThread = new LoaderThread();
 	connect(m_loaderThread,SIGNAL(progress(quint64,quint64)),this,SLOT(loaderProgress(quint64,quint64)));
 	connect(m_loaderThread,SIGNAL(done(quint64)),this,SLOT(loaderDone(quint64)));
+	connect(m_loaderThread,SIGNAL(error(QString)),this,SLOT(loaderError(QString)));
 	m_loaderThread->startLoad(m_loadedS19,ui.portNameComboBox->itemData(ui.portNameComboBox->currentIndex()).toString());
 }
 void MainWindow::loadFileDone()
@@ -107,6 +119,7 @@ void MainWindow::loaderDone(quint64 msecs)
 	ui.label->setText(ui.label->text() + "\nFlashing complete in: " + QString::number(msecs / 1000.0) + " seconds");
 	m_loaderThread->deleteLater();
 	m_loaderThread = 0;
+	QMessageBox::information(0,"Congratulations!","Flashing is complete! Please remove SM jumper and reset the device");
 }
 void MainWindow::selectSaveButtonClicked()
 {
@@ -119,4 +132,8 @@ void MainWindow::selectSaveButtonClicked()
 	connect(m_loaderThread,SIGNAL(progress(quint64,quint64)),this,SLOT(loaderProgress(quint64,quint64)));
 	connect(m_loaderThread,SIGNAL(done()),this,SLOT(loaderDone()));
 	m_loaderThread->startRip(filename,ui.portNameComboBox->itemData(ui.portNameComboBox->currentIndex()).toString());
+}
+void MainWindow::loaderError(QString error)
+{
+	QMessageBox::information(0,"Error",error);
 }

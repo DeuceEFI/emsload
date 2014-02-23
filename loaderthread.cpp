@@ -101,7 +101,7 @@ void LoaderThread::run()
 		if (!serialMonitor->openPort(m_portName))
 		{
 			qDebug() << "Unable to open port";
-			emit error("Unable to open port");
+			emit error("Unable to open port. Ensure the device is connected, and you have the proper permissions to open the device");
 			delete serialMonitor;
 			return;
 		}
@@ -111,7 +111,7 @@ void LoaderThread::run()
 			//Timed out
 			serialMonitor->closePort();
 			qDebug() << "Unable to open port";
-			emit error("Unable to verify SM mode");
+			emit error("Unable to verify SM mode. Ensure you have the correct device selected, and it is in SM mode.");
 			delete serialMonitor;
 			return;
 		}
@@ -140,7 +140,7 @@ void LoaderThread::run()
 				if (totalerror >= 100)
 				{
 					serialMonitor->closePort();
-					emit error("Too many errors!");
+					emit error("Too many errors while loading firmware. Make sure you have a good connection to the device and try again");
 					delete serialMonitor;
 					return;
 				}

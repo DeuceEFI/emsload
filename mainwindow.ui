@@ -96,7 +96,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Firmware loading&lt;/p&gt;&lt;p&gt;Select a firmware file, then click load.&lt;/p&gt;&lt;p&gt;Alternativly, you can Save FW to save the firmware currently on the device to a S19 file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;S19 Firmware loading on S12X devices&lt;/p&gt;&lt;p&gt;Select a firmware file, then click load.&lt;/p&gt;&lt;p&gt;Alternativly, you can Save FW to save the firmware currently on the device to a S19 file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
     <property name="wordWrap">
      <bool>true</bool>
